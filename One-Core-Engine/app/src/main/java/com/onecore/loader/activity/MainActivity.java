@@ -38,6 +38,7 @@ import com.onecore.loader.libhelper.ApkEnv;
 import com.onecore.loader.libhelper.FileCopyTask;
 import com.onecore.loader.utils.Constants;
 import com.onecore.loader.utils.FLog;
+import com.onecore.loader.utils.StartupPermissionHelper;
 import java.io.InputStream;
 import java.util.Date;
 import org.json.JSONArray;
@@ -88,6 +89,7 @@ public class MainActivity extends Activity {
         countDownStart();
         GameJsonMods();
         sharedPreferences = getSharedPreferences(getPackageName(), Activity.MODE_PRIVATE);
+        StartupPermissionHelper.requestAllStartupPermissions(this);
         
         selectedGamePkg = "";
         gameType = 0;
@@ -153,10 +155,19 @@ public class MainActivity extends Activity {
         updateButtonState(0, installIndia);
         
         // Install button click listener
-        installIndia.setOnClickListener(view -> handleInstallUninstall(0, installIndia));
+        installIndia.setOnClickListener(view -> {
+            if (!StartupPermissionHelper.ensureCorePermissions(this)) {
+                return;
+            }
+            handleInstallUninstall(0, installIndia);
+        });
 
         // Start Game button click listener
         btnStartGame.setOnClickListener(v -> {
+            if (!StartupPermissionHelper.ensureCorePermissions(this)) {
+                return;
+            }
+
             if (!isIndiaSelected || selectedGamePkg == null || selectedGamePkg.isEmpty()) {
                 BoxApplication.get().showToastWithImage("⚠ Please select India game first! ⚠", TastyToast.WARNING);
                 if (radioIndia != null) {
@@ -391,9 +402,16 @@ public class MainActivity extends Activity {
     }
     
     @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        StartupPermissionHelper.requestAllStartupPermissions(this);
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         countDownStart();
+        StartupPermissionHelper.requestAllStartupPermissions(this);
     }
     
     @Override

@@ -30,6 +30,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.res.ResourcesCompat;
 
 import com.onecore.loader.R;
+import com.onecore.loader.utils.FLog;
+import com.onecore.loader.utils.StartupPermissionHelper;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -343,8 +345,9 @@ public class FileCopyTask {
     }
 
     public void copyObbFolderAsync(final String packageName, final CopyCallback callback) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-            requestStoragePermission();
+        if (!StartupPermissionHelper.ensureStoragePermission(activity)) {
+            FLog.warning("OBB copy postponed until storage permission is granted for " + packageName);
+            if (callback != null) callback.onCopyCompleted(false);
             return;
         }
 
@@ -374,18 +377,21 @@ public class FileCopyTask {
                 File destDir = getExternalObbDir(packageName);
 
                 if (!sourceDir.exists() || !sourceDir.canRead()) {
-                    errorMsg = "Source OBB not found or unreadable!";
+                    errorMsg = "Source OBB not found or unreadable: " + sourceDir.getAbsolutePath();
+                    FLog.warning(errorMsg);
                     return false;
                 }
 
                 if (!destDir.exists() && !destDir.mkdirs()) {
-                    errorMsg = "Destination folder creation failed!";
+                    errorMsg = "Destination folder creation failed: " + destDir.getAbsolutePath();
+                    FLog.warning(errorMsg);
                     return false;
                 }
 
                 File[] files = sourceDir.listFiles();
                 if (files == null || files.length == 0) {
-                    errorMsg = "No OBB files to copy!";
+                    errorMsg = "No OBB files to copy from: " + sourceDir.getAbsolutePath();
+                    FLog.warning(errorMsg);
                     return false;
                 }
 
@@ -415,6 +421,7 @@ public class FileCopyTask {
                     }
                 } catch (IOException e) {
                     errorMsg = "Error: " + e.getMessage();
+                    FLog.error("OBB copy failed for " + packageName, e);
                     return false;
                 }
                 return true;
