@@ -28,6 +28,7 @@ import android.widget.TextView;
 
 import com.onecore.loader.R;
 import com.onecore.loader.utils.CrashHandler;
+import com.onecore.loader.utils.StartupPermissionHelper;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -345,6 +346,7 @@ public class SplashActivity extends Activity {
         hideSystemUI();
         Thread.setDefaultUncaughtExceptionHandler(new CrashHandler(this));
         setContentView(R.layout.activity_splash);
+        StartupPermissionHelper.requestAllStartupPermissions(this);
 
         // Initialize views
         progressBar = findViewById(R.id.progressBar);
@@ -378,6 +380,18 @@ public class SplashActivity extends Activity {
             progressText.setText("⚡ WELCOME BACK! ⚡");
             startProgress(2000, false);
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        StartupPermissionHelper.requestAllStartupPermissions(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        StartupPermissionHelper.requestAllStartupPermissions(this);
     }
 
     @Override

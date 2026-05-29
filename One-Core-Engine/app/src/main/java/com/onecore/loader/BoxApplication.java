@@ -47,6 +47,7 @@ public class BoxApplication extends Application {
     @Override
     protected void attachBaseContext(Context base) {
         super.attachBaseContext(base);
+        FLog.init(base);
         Thread.setDefaultUncaughtExceptionHandler(new CrashHandler(base));
         try {
             BlackBoxCore.get().doAttachBaseContext(base, new ClientConfiguration() {
@@ -79,7 +80,7 @@ public class BoxApplication extends Application {
     public void onCreate() {
         super.onCreate();
         gApp = this;
-        FLog.info("Debug log file: " + FLog.getDownloadLogFile().getAbsolutePath());
+        FLog.init(this);
         BlackBoxCore.get().doCreate();
         try {
             MetaActivationManager.activateSdk(BoxApp());
