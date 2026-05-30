@@ -1,7 +1,6 @@
 package com.onecore.loader.activity;
 
 import android.app.Activity;
-import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -9,12 +8,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.icu.text.SimpleDateFormat;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
@@ -181,9 +178,8 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            if (ApkEnv.getInstance().LaunchApplication(selectedGamePkg)) {
-                startPatcher();
-            } else {
+            stopFloatingServices();
+            if (!ApkEnv.getInstance().LaunchApplication(selectedGamePkg)) {
                 BoxApplication.get().showToastWithImage("Unable to launch selected game", TastyToast.ERROR);
             }
         });
@@ -358,53 +354,21 @@ public class MainActivity extends Activity {
         }
     }
     
-    private void CheckFloatViewPermission() {
-        if (!Settings.canDrawOverlays(MainActivity.get())) {
-            BoxApplication.get().showToastWithImage(Constants.MSG_FLOATING, TastyToast.INFO);
-            startActivityForResult(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName())), 0);
-        }
-    }
-
-    private boolean isServiceRunning() {
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        if (manager != null) {
-            for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-                if (FloatLogo.class.getName().equals(service.service.getClassName())) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private void startPatcher() {
-        if (!Settings.canDrawOverlays(MainActivity.get())) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
-            startActivityForResult(intent, 123);
-        } else {
-            startFloater();
-        }
-    }
-
-    private void startFloater() {
-        if (!isServiceRunning()) {
-            startService(new Intent(MainActivity.get(), FloatLogo.class));
-        } else {
-            BoxApplication.get().showToastWithImage(Constants.MSG_RUNNING, TastyToast.WARNING);
-        }
-    }
-    
     @Override
     protected void onResume() {
         super.onResume();
         countDownStart();
     }
     
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
+    private void stopFloatingServices() {
         stopService(new Intent(MainActivity.get(), FloatLogo.class));
         stopService(new Intent(MainActivity.get(), Overlay.class));
         stopService(new Intent(MainActivity.get(), FloatAim.class));
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        stopFloatingServices();
     }
 }
