@@ -86,9 +86,9 @@ public class MainActivity extends Activity {
         GameJsonMods();
         sharedPreferences = getSharedPreferences(getPackageName(), Activity.MODE_PRIVATE);
         
-        selectedGamePkg = "";
-        gameType = 0;
-        isIndiaSelected = false;
+        selectedGamePkg = GAME_LIST_PKG[0];
+        gameType = 5;
+        isIndiaSelected = true;
         
         // Find Views
         installIndia = findViewById(R.id.installIndia);
@@ -97,9 +97,13 @@ public class MainActivity extends Activity {
         radioIndia = findViewById(R.id.radio_india);
         tvHideEsp = findViewById(R.id.tv_hide_esp);
 
-        // Make sure radio button is unchecked initially
+        // Select BGMI/India by default so Start Game works without an extra tap.
         if (radioIndia != null) {
-            radioIndia.setChecked(false);
+            radioIndia.setChecked(true);
+        }
+        if (btnStartGame != null) {
+            btnStartGame.setClickable(true);
+            btnStartGame.setFocusable(true);
         }
         
         // Set RadioButton click listener
@@ -154,23 +158,14 @@ public class MainActivity extends Activity {
 
         // Start Game button click listener
         btnStartGame.setOnClickListener(v -> {
-            if (!isIndiaSelected || selectedGamePkg == null || selectedGamePkg.isEmpty()) {
-                BoxApplication.get().showToastWithImage("⚠ Please select India game first! ⚠", TastyToast.WARNING);
+            FLog.info("Start Game clicked");
+            if (selectedGamePkg == null || selectedGamePkg.isEmpty()) {
+                selectedGamePkg = GAME_LIST_PKG[0];
+                gameType = 5;
+                isIndiaSelected = true;
                 if (radioIndia != null) {
-                    radioIndia.animate()
-                        .scaleX(1.2f)
-                        .scaleY(1.2f)
-                        .setDuration(300)
-                        .withEndAction(() -> {
-                            radioIndia.animate()
-                                .scaleX(1f)
-                                .scaleY(1f)
-                                .setDuration(300)
-                                .start();
-                        })
-                        .start();
+                    radioIndia.setChecked(true);
                 }
-                return;
             }
 
             if (!ApkEnv.getInstance().isInstalled(selectedGamePkg)) {
@@ -179,6 +174,7 @@ public class MainActivity extends Activity {
             }
 
             stopFloatingServices();
+            FLog.info("Launching selected game: " + selectedGamePkg);
             if (!ApkEnv.getInstance().LaunchApplication(selectedGamePkg)) {
                 BoxApplication.get().showToastWithImage("Unable to launch selected game", TastyToast.ERROR);
             }

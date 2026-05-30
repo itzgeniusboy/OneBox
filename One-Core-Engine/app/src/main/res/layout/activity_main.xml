@@ -344,6 +344,8 @@
             android:layout_width="fill_parent"
             android:layout_height="48.0dip"
             android:layout_marginTop="20.0dip"
+            android:clickable="true"
+            android:focusable="true"
             android:text="START GAME"
             android:fontFamily="@font/acme"
             android:letterSpacing="0.1"/>
