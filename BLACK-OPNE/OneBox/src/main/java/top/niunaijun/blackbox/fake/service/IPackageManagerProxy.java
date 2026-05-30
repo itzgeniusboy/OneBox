@@ -40,6 +40,7 @@ import top.niunaijun.blackbox.utils.MethodParameterUtils;
 import top.niunaijun.blackbox.utils.Reflector;
 import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
+import top.niunaijun.blackbox.utils.compat.OAuthIntentHelper;
 import top.niunaijun.blackbox.utils.compat.ParceledListSliceCompat;
 
 /**
@@ -83,6 +84,31 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         return false;
     }
 
+    private static int getFlags(Object[] args, int fallbackIndex) {
+        if (args != null && fallbackIndex >= 0 && fallbackIndex < args.length && args[fallbackIndex] instanceof Number) {
+            return ((Number) args[fallbackIndex]).intValue();
+        }
+        if (args != null) {
+            for (Object arg : args) {
+                if (arg instanceof Number) {
+                    return ((Number) arg).intValue();
+                }
+            }
+        }
+        return 0;
+    }
+
+    private static Object createResolveListResult(Method method, List<ResolveInfo> resolves) {
+        if (method.getReturnType() != null && method.getReturnType().getName().contains("ParceledListSlice")) {
+            return ParceledListSliceCompat.create(resolves);
+        }
+        return resolves;
+    }
+
+    private static boolean isEmpty(List<?> list) {
+        return list == null || list.isEmpty();
+    }
+
     @Override
     protected void onBindMethod() {
         super.onBindMethod();
@@ -100,7 +126,13 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             Intent intent = (Intent) args[0];
             String resolvedType = (String) args[1];
-            int flags = Integer.parseInt(args[2] + "");
+            int flags = getFlags(args, 2);
+            if (intent == null) {
+                return method.invoke(who, args);
+            }
+            if (OAuthIntentHelper.shouldUseHostResolver(intent) && !OAuthIntentHelper.isFacebookOAuthCallback(intent)) {
+                return method.invoke(who, args);
+            }
             ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveIntent(intent, resolvedType, flags, BActivityThread.getUserId());
             if (resolveInfo != null) {
                 return resolveInfo;
@@ -115,10 +147,62 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             Intent intent = (Intent) args[0];
             String resolvedType = (String) args[1];
-            int flags = Integer.parseInt(args[2] + "");
+            int flags = getFlags(args, 2);
+            if (intent == null) {
+                return method.invoke(who, args);
+            }
+            if (OAuthIntentHelper.shouldUseHostResolver(intent)) {
+                return method.invoke(who, args);
+            }
             ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveService(intent, flags, resolvedType, BActivityThread.getUserId());
             if (resolveInfo != null) {
                 return resolveInfo;
+            }
+            return method.invoke(who, args);
+        }
+    }
+
+    @ProxyMethod("queryIntentActivities")
+    public static class QueryIntentActivities extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            Intent intent = MethodParameterUtils.getFirstParam(args, Intent.class);
+            String resolvedType = MethodParameterUtils.getFirstParam(args, String.class);
+            int flags = getFlags(args, 2);
+            if (intent == null) {
+                return method.invoke(who, args);
+            }
+
+            if (OAuthIntentHelper.shouldUseHostResolver(intent) && !OAuthIntentHelper.isFacebookOAuthCallback(intent)) {
+                return method.invoke(who, args);
+            }
+
+            List<ResolveInfo> resolves = BlackBoxCore.getBPackageManager().queryIntentActivities(intent, flags, resolvedType, BActivityThread.getUserId());
+            if (!isEmpty(resolves)) {
+                return createResolveListResult(method, resolves);
+            }
+            return method.invoke(who, args);
+        }
+    }
+
+    @ProxyMethod("queryIntentServices")
+    public static class QueryIntentServices extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            Intent intent = MethodParameterUtils.getFirstParam(args, Intent.class);
+            String resolvedType = MethodParameterUtils.getFirstParam(args, String.class);
+            int flags = getFlags(args, 2);
+            if (intent == null) {
+                return method.invoke(who, args);
+            }
+
+            if (OAuthIntentHelper.shouldUseHostResolver(intent)) {
+                return method.invoke(who, args);
+            }
+
+            List<ResolveInfo> resolves = BlackBoxCore.getBPackageManager().queryIntentServices(intent, flags, resolvedType, BActivityThread.getUserId());
+            if (!isEmpty(resolves)) {
+                return createResolveListResult(method, resolves);
             }
             return method.invoke(who, args);
         }
@@ -422,6 +506,22 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         }
     }
     
+    @ProxyMethod("hasSigningCertificate")
+    public static class HasSigningCertificate extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (args != null && args.length > 0 && args[0] instanceof String) {
+                String packageName = (String) args[0];
+                if (AppSystemEnv.isFacebookPackage(packageName) || AppSystemEnv.isBrowserPackage(packageName)) {
+                    // Facebook SDK validates official app signatures through PM.
+                    // Forward known host packages to the real package manager.
+                    return method.invoke(who, args);
+                }
+            }
+            return method.invoke(who, args);
+        }
+    }
+
     @ProxyMethod("checkSignatures")
     public static class checkSignatures extends MethodHook {
         @Override

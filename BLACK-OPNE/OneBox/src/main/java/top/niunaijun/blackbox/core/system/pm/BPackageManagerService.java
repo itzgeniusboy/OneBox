@@ -463,8 +463,12 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 }
                 return result;
             }
+            // Resolve implicit callbacks (for example fb<APP_ID>://authorize)
+            // against installed virtual packages instead of returning an empty
+            // list. External browser/Facebook packages are still forwarded by
+            // IPackageManagerProxy and ActivityManagerCommonProxy.
+            return mComponentResolver.queryActivities(intent, resolvedType, flags, userId);
         }
-        return Collections.emptyList();
     }
 
     @Override
