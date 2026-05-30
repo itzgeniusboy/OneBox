@@ -63,6 +63,7 @@ import top.niunaijun.blackbox.utils.Reflector;
 import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.compat.ActivityManagerCompat;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
+import top.niunaijun.blackbox.utils.compat.OAuthIntentHelper;
 import top.niunaijun.blackbox.utils.compat.ParceledListSliceCompat;
 import top.niunaijun.blackbox.utils.compat.TaskDescriptionCompat;
 
@@ -274,6 +275,12 @@ public class IActivityManagerProxy extends ClassInvocationStub {
             int userId = intent.getIntExtra("_G_|_UserId", -1);
             userId = userId == -1 ? BActivityThread.getUserId() : userId;
             ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveService(intent, 0, resolvedType, userId);
+            if (resolveInfo == null && OAuthIntentHelper.shouldUseHostResolver(intent)) {
+                // Chrome Custom Tabs and Facebook SSO services live in host packages.
+                // Let AMS bind the real service instead of routing it through the
+                // virtual service manager where no ServiceInfo exists.
+                return method.invoke(who, args);
+            }
             if (resolveInfo != null || AppSystemEnv.isOpenPackage(intent.getComponent())) {
                 Intent bindService = BlackBoxCore.getBActivityManager().bindService(intent,connection == null ? null : connection.asBinder(),resolvedType,userId);
                 if (connection != null) {

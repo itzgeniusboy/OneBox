@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.R;
 import top.niunaijun.blackbox.utils.Slog;
+import top.niunaijun.blackbox.utils.compat.OAuthWebViewCompat;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.view.animation.OvershootInterpolator;
@@ -31,9 +32,20 @@ public class LauncherActivity extends Activity {
         splash.setClass(BlackBoxCore.getContext(), LauncherActivity.class);
         splash.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         splash.putExtra(KEY_INTENT, intent);
-        splash.putExtra(KEY_PKG, intent.getPackage());
+        splash.putExtra(KEY_PKG, getPackageName(intent));
         splash.putExtra(KEY_USER_ID, userId);
         BlackBoxCore.getContext().startActivity(splash);
+    }
+
+    private static String getPackageName(Intent intent) {
+        if (intent == null) {
+            return null;
+        }
+        String packageName = intent.getPackage();
+        if (packageName == null && intent.getComponent() != null) {
+            packageName = intent.getComponent().getPackageName();
+        }
+        return packageName;
     }
 
     @Override
@@ -57,9 +69,9 @@ public class LauncherActivity extends Activity {
         }
 
         if (packageName == null) {
-            packageName = launchIntent.getPackage();
+            packageName = getPackageName(launchIntent);
             if (packageName == null) {
-                Slog.e(TAG, "Package name is null! Cannot launch app.");
+                Slog.e(TAG, "Package name is null! Cannot launch app. intent=" + launchIntent);
                 finish();
                 return;
             }
@@ -76,7 +88,8 @@ public class LauncherActivity extends Activity {
 
         // ===== Premium Loading WebView =====
         WebView web = findViewById(R.id.web_loading);
-        web.getSettings().setJavaScriptEnabled(true);
+        OAuthWebViewCompat.configure(web);
+        web.setWebViewClient(OAuthWebViewCompat.createOAuthWebViewClient(this));
         web.setBackgroundColor(Color.TRANSPARENT);
         String html = getPremiumLoadingHtml();
         web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
@@ -106,7 +119,20 @@ public class LauncherActivity extends Activity {
                 .start();
 
         // ===== Launch App =====
-        new Thread(() -> BlackBoxCore.getBActivityManager().startActivity(launchIntent, userId)).start();
+        final String launchPackageName = packageName;
+        new Thread(() -> {
+            try {
+                BlackBoxCore.getBActivityManager().startActivity(launchIntent, userId);
+            } catch (Throwable e) {
+                Slog.e(TAG, "Unable to start " + launchPackageName, e);
+            } finally {
+                runOnUiThread(() -> {
+                    if (!isFinishing()) {
+                        finish();
+                    }
+                });
+            }
+        }).start();
     }
 
     private String getPremiumLoadingHtml() {

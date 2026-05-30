@@ -23,7 +23,7 @@ jobs:
 
     env:
       SDK_PROJECT_DIR: BLACK-OPNE
-      SDK_MODULE: RIYAZ-VIP
+      SDK_MODULE: OneBox
       LOADER_PROJECT_DIR: One-Core-Engine
       LOADER_AAR_PATH: One-Core-Engine/app/libs/Bcore-release.aar
       NDK_VERSION: 24.0.8215888
