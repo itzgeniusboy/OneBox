@@ -23,11 +23,13 @@ public class ApkEnv {
         return singleton;
     }
     
-    public static void LaunchApplication(String packageName) {
+    public static boolean LaunchApplication(String packageName) {
         try {
-            BlackBoxCore.get().launchApk(packageName, 0);
+            return BlackBoxCore.get().launchApk(packageName, 0);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            FLog.error(e.getMessage());
+            BoxApplication.get().showToastWithImage(e.getMessage(), TastyToast.WARNING);
+            return false;
         }
     }
 
@@ -83,11 +85,14 @@ public class ApkEnv {
 
         ApplicationInfo applicationInfo = null;
         try {
-         //   applicationInfo = BlackBoxCore.get().getApplicationInfo(packageName);
+            applicationInfo = BlackBoxCore.get().getApplicationInfo(packageName);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            FLog.error(e.getMessage());
+            BoxApplication.get().showToastWithImage(e.getMessage(), TastyToast.WARNING);
+            return null;
         }
         if (applicationInfo == null) {
+            BoxApplication.get().showToastWithImage("Unable to read installed app info", TastyToast.WARNING);
             return null;
         }
         return applicationInfo;

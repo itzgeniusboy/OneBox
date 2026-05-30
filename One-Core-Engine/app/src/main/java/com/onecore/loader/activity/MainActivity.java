@@ -181,8 +181,11 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            ApkEnv.getInstance().LaunchApplication(selectedGamePkg);
-            startPatcher();
+            if (ApkEnv.getInstance().LaunchApplication(selectedGamePkg)) {
+                startPatcher();
+            } else {
+                BoxApplication.get().showToastWithImage("Unable to launch selected game", TastyToast.ERROR);
+            }
         });
         
         // Hide ESP option click listener
@@ -224,8 +227,8 @@ public class MainActivity extends Activity {
         CURRENT_PACKAGE = packageName;
         Handler handler = new Handler(Looper.getMainLooper());
         handler.post(() -> {
-            if (ApkEnv.getInstance().tryAddLoader(packageName)) {
-                ApkEnv.getInstance().LaunchApplication(packageName);
+            if (ApkEnv.getInstance().tryAddLoader(packageName) && !ApkEnv.getInstance().LaunchApplication(packageName)) {
+                BoxApplication.get().showToastWithImage("Unable to launch selected game", TastyToast.ERROR);
             }
         });
     }
@@ -284,7 +287,8 @@ public class MainActivity extends Activity {
     
     private void updateButtonState(int gameIndex, TextView installButton) {
         String packageName = GAME_LIST_PKG[gameIndex];
-        boolean installed = getInstallationStatus(packageName);
+        boolean installed = ApkEnv.getInstance().isInstalled(packageName);
+        saveInstallationStatus(packageName, installed);
         if(installed) {
             installButton.setText("UNINSTALL");
         } else {
