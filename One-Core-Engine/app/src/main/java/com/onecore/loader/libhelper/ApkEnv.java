@@ -85,14 +85,11 @@ public class ApkEnv {
 
         ApplicationInfo applicationInfo = null;
         try {
-            applicationInfo = BlackBoxCore.get().getApplicationInfo(packageName);
+         //   applicationInfo = BlackBoxCore.get().getApplicationInfo(packageName);
         } catch (Exception e) {
-            FLog.error(e.getMessage());
-            BoxApplication.get().showToastWithImage(e.getMessage(), TastyToast.WARNING);
-            return null;
+            throw new RuntimeException(e);
         }
         if (applicationInfo == null) {
-            BoxApplication.get().showToastWithImage("Unable to read installed app info", TastyToast.WARNING);
             return null;
         }
         return applicationInfo;

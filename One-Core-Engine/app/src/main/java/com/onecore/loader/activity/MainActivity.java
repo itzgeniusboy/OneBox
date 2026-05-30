@@ -227,7 +227,7 @@ public class MainActivity extends Activity {
         CURRENT_PACKAGE = packageName;
         Handler handler = new Handler(Looper.getMainLooper());
         handler.post(() -> {
-            if (ApkEnv.getInstance().tryAddLoader(packageName) && !ApkEnv.getInstance().LaunchApplication(packageName)) {
+            if (!ApkEnv.getInstance().LaunchApplication(packageName)) {
                 BoxApplication.get().showToastWithImage("Unable to launch selected game", TastyToast.ERROR);
             }
         });
