@@ -1,3 +1,3 @@
-include ':RIYAZ-VIP'
+include ':OneBox'
 
-rootProject.name = "RIYAZ BBOX"
+rootProject.name = "OneBox"

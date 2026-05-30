@@ -357,7 +357,7 @@ body{
         <div class="row">
             <div id="iconDev" class="icon"></div>
             <div class="text">
-                <span class="highlight">Developer:</span> RIYAZ BBOX
+                <span class="highlight">Developer:</span> OneBox
             </div>
         </div>
         
@@ -377,7 +377,7 @@ body{
     <div class="footer">
         <div class="footer-row">
             <div id="iconPerfect" class="footer-icon"></div>
-            <span class="footer-text">RIYAZ BBOX SDK</span>
+            <span class="footer-text">OneBox SDK</span>
         </div>
         <div class="footer-note">License renewal required</div>
         
