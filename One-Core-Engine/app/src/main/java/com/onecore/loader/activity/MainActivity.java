@@ -1,7 +1,6 @@
 package com.onecore.loader.activity;
 
 import android.app.Activity;
-import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -9,12 +8,10 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.icu.text.SimpleDateFormat;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.LinearInterpolator;
@@ -89,9 +86,9 @@ public class MainActivity extends Activity {
         GameJsonMods();
         sharedPreferences = getSharedPreferences(getPackageName(), Activity.MODE_PRIVATE);
         
-        selectedGamePkg = "";
-        gameType = 0;
-        isIndiaSelected = false;
+        selectedGamePkg = GAME_LIST_PKG[0];
+        gameType = 5;
+        isIndiaSelected = true;
         
         // Find Views
         installIndia = findViewById(R.id.installIndia);
@@ -100,9 +97,13 @@ public class MainActivity extends Activity {
         radioIndia = findViewById(R.id.radio_india);
         tvHideEsp = findViewById(R.id.tv_hide_esp);
 
-        // Make sure radio button is unchecked initially
+        // Select BGMI/India by default so Start Game works without an extra tap.
         if (radioIndia != null) {
-            radioIndia.setChecked(false);
+            radioIndia.setChecked(true);
+        }
+        if (btnStartGame != null) {
+            btnStartGame.setClickable(true);
+            btnStartGame.setFocusable(true);
         }
         
         // Set RadioButton click listener
@@ -157,23 +158,14 @@ public class MainActivity extends Activity {
 
         // Start Game button click listener
         btnStartGame.setOnClickListener(v -> {
-            if (!isIndiaSelected || selectedGamePkg == null || selectedGamePkg.isEmpty()) {
-                BoxApplication.get().showToastWithImage("⚠ Please select India game first! ⚠", TastyToast.WARNING);
+            FLog.info("Start Game clicked");
+            if (selectedGamePkg == null || selectedGamePkg.isEmpty()) {
+                selectedGamePkg = GAME_LIST_PKG[0];
+                gameType = 5;
+                isIndiaSelected = true;
                 if (radioIndia != null) {
-                    radioIndia.animate()
-                        .scaleX(1.2f)
-                        .scaleY(1.2f)
-                        .setDuration(300)
-                        .withEndAction(() -> {
-                            radioIndia.animate()
-                                .scaleX(1f)
-                                .scaleY(1f)
-                                .setDuration(300)
-                                .start();
-                        })
-                        .start();
+                    radioIndia.setChecked(true);
                 }
-                return;
             }
 
             if (!ApkEnv.getInstance().isInstalled(selectedGamePkg)) {
@@ -181,8 +173,11 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            ApkEnv.getInstance().LaunchApplication(selectedGamePkg);
-            startPatcher();
+            stopFloatingServices();
+            FLog.info("Launching selected game: " + selectedGamePkg);
+            if (!ApkEnv.getInstance().LaunchApplication(selectedGamePkg)) {
+                BoxApplication.get().showToastWithImage("Unable to launch selected game", TastyToast.ERROR);
+            }
         });
         
         // Hide ESP option click listener
@@ -224,8 +219,8 @@ public class MainActivity extends Activity {
         CURRENT_PACKAGE = packageName;
         Handler handler = new Handler(Looper.getMainLooper());
         handler.post(() -> {
-            if (ApkEnv.getInstance().tryAddLoader(packageName)) {
-                ApkEnv.getInstance().LaunchApplication(packageName);
+            if (!ApkEnv.getInstance().LaunchApplication(packageName)) {
+                BoxApplication.get().showToastWithImage("Unable to launch selected game", TastyToast.ERROR);
             }
         });
     }
@@ -284,7 +279,8 @@ public class MainActivity extends Activity {
     
     private void updateButtonState(int gameIndex, TextView installButton) {
         String packageName = GAME_LIST_PKG[gameIndex];
-        boolean installed = getInstallationStatus(packageName);
+        boolean installed = ApkEnv.getInstance().isInstalled(packageName);
+        saveInstallationStatus(packageName, installed);
         if(installed) {
             installButton.setText("UNINSTALL");
         } else {
@@ -354,53 +350,21 @@ public class MainActivity extends Activity {
         }
     }
     
-    private void CheckFloatViewPermission() {
-        if (!Settings.canDrawOverlays(MainActivity.get())) {
-            BoxApplication.get().showToastWithImage(Constants.MSG_FLOATING, TastyToast.INFO);
-            startActivityForResult(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName())), 0);
-        }
-    }
-
-    private boolean isServiceRunning() {
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        if (manager != null) {
-            for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
-                if (FloatLogo.class.getName().equals(service.service.getClassName())) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private void startPatcher() {
-        if (!Settings.canDrawOverlays(MainActivity.get())) {
-            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
-            startActivityForResult(intent, 123);
-        } else {
-            startFloater();
-        }
-    }
-
-    private void startFloater() {
-        if (!isServiceRunning()) {
-            startService(new Intent(MainActivity.get(), FloatLogo.class));
-        } else {
-            BoxApplication.get().showToastWithImage(Constants.MSG_RUNNING, TastyToast.WARNING);
-        }
-    }
-    
     @Override
     protected void onResume() {
         super.onResume();
         countDownStart();
     }
     
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
+    private void stopFloatingServices() {
         stopService(new Intent(MainActivity.get(), FloatLogo.class));
         stopService(new Intent(MainActivity.get(), Overlay.class));
         stopService(new Intent(MainActivity.get(), FloatAim.class));
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        stopFloatingServices();
     }
 }

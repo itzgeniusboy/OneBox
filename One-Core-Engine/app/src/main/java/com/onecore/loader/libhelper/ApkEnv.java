@@ -23,11 +23,13 @@ public class ApkEnv {
         return singleton;
     }
     
-    public static void LaunchApplication(String packageName) {
+    public static boolean LaunchApplication(String packageName) {
         try {
-            BlackBoxCore.get().launchApk(packageName, 0);
+            return BlackBoxCore.get().launchApk(packageName, 0);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            FLog.error(e.getMessage());
+            BoxApplication.get().showToastWithImage(e.getMessage(), TastyToast.WARNING);
+            return false;
         }
     }
 

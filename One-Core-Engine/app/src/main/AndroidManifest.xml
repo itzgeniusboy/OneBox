@@ -139,7 +139,6 @@
             </intent-filter>
         </receiver>
 
-        <service android:name=".floating.FloatingService" android:stopWithTask="true" />
         <service android:name=".floating.Overlay" android:stopWithTask="true" />
 
     </application>

@@ -68,6 +68,11 @@ public class BoxApplication extends Application {
                 public boolean isEnableDaemonService(){
                     return true;
                 }
+
+                @Override
+                public boolean isEnableLauncherActivity() {
+                    return false;
+                }
             });
         } catch (Exception e) {
             e.printStackTrace();
