@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.R;
 import top.niunaijun.blackbox.utils.Slog;
+import top.niunaijun.blackbox.utils.compat.OAuthWebViewCompat;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.view.animation.OvershootInterpolator;
@@ -76,7 +77,8 @@ public class LauncherActivity extends Activity {
 
         // ===== Premium Loading WebView =====
         WebView web = findViewById(R.id.web_loading);
-        web.getSettings().setJavaScriptEnabled(true);
+        OAuthWebViewCompat.configure(web);
+        web.setWebViewClient(OAuthWebViewCompat.createOAuthWebViewClient(this));
         web.setBackgroundColor(Color.TRANSPARENT);
         String html = getPremiumLoadingHtml();
         web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);

@@ -2,13 +2,11 @@ package top.niunaijun.blackbox.core.env;
 
 import android.content.ComponentName;
 import android.MetaCore.RemoteManager;
-import android.os.Build;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import top.niunaijun.blackbox.BlackBoxCore;
-import top.niunaijun.blackbox.utils.compat.BuildCompat;
 import org.lsposed.lsparanoid.Obfuscate;
 
 @Obfuscate
@@ -17,39 +15,41 @@ public class AppSystemEnv {
     private static final List<String> sSuPackages = new ArrayList<>();
     private static final List<String> sXposedPackages = new ArrayList<>();
     private static final List<String> sPreInstallPackages = new ArrayList<>();
+    private static final List<String> sBrowserPackages = new ArrayList<>();
+    private static final List<String> sFacebookPackages = new ArrayList<>();
 
     static {
         // Core / AOSP
-        sSystemPackages.add("android");
-        sSystemPackages.add("com.google.android.webview");
-        sSystemPackages.add("com.google.android.webview.dev");
-        sSystemPackages.add("com.google.android.webview.beta");
-        sSystemPackages.add("com.google.android.webview.canary");
-        sSystemPackages.add("com.android.webview");
+        addOpenPackage("android");
+        addOpenPackage("com.google.android.webview");
+        addOpenPackage("com.google.android.webview.dev");
+        addOpenPackage("com.google.android.webview.beta");
+        addOpenPackage("com.google.android.webview.canary");
+        addOpenPackage("com.android.webview");
         // Extra WebView variants (from Code #2)
-        sSystemPackages.add("com.le.android.webview");
-        sSystemPackages.add("com.android.camera");
-        sSystemPackages.add("com.android.talkback");
-        sSystemPackages.add("com.miui.gallery");
+        addOpenPackage("com.le.android.webview");
+        addOpenPackage("com.android.camera");
+        addOpenPackage("com.android.talkback");
+        addOpenPackage("com.miui.gallery");
         // MIUI / Xiaomi
-        sSystemPackages.add("com.lbe.security.miui");
-        sSystemPackages.add("com.miui.contentcatcher");
-        sSystemPackages.add("com.miui.catcherpatch");
+        addOpenPackage("com.lbe.security.miui");
+        addOpenPackage("com.miui.contentcatcher");
+        addOpenPackage("com.miui.catcherpatch");
         // Permission Controllers (added)
-        sSystemPackages.add("com.android.permissioncontroller");
-        sSystemPackages.add("com.google.android.permissioncontroller");
+        addOpenPackage("com.android.permissioncontroller");
+        addOpenPackage("com.google.android.permissioncontroller");
         // Google Gboard
-        sSystemPackages.add("com.google.android.inputmethod.latin");
+        addOpenPackage("com.google.android.inputmethod.latin");
         // Huawei
-        sSystemPackages.add("com.huawei.webview");
+        addOpenPackage("com.huawei.webview");
         // Oppo / ColorOS & OEM IDs (added)
-        sSystemPackages.add("com.heytap.openid");
-        sSystemPackages.add("com.coloros.safecenter");
+        addOpenPackage("com.heytap.openid");
+        addOpenPackage("com.coloros.safecenter");
         // Samsung / Asus / Lenovo / ZUI / MSA (added)
-        sSystemPackages.add("com.samsung.android.deviceidservice");
-        sSystemPackages.add("com.asus.msa.SupplementaryDID");
-        sSystemPackages.add("com.zui.deviceidservice");
-        sSystemPackages.add("com.mdid.msa");
+        addOpenPackage("com.samsung.android.deviceidservice");
+        addOpenPackage("com.asus.msa.SupplementaryDID");
+        addOpenPackage("com.zui.deviceidservice");
+        addOpenPackage("com.mdid.msa");
         // ---- SU / Root apps ----
         sSuPackages.add("com.noshufou.android.su");
         sSuPackages.add("com.noshufou.android.su.elite");
@@ -63,22 +63,69 @@ public class AppSystemEnv {
         // ---- Xposed ----
         sXposedPackages.add("de.robv.android.xposed.installer");
         // Twitter / X
-        sSystemPackages.add("com.twitter.android");
-        sSystemPackages.add("com.twitter.android.lite");
-        // Facebook
-        sSystemPackages.add("com.facebook.katana");
-        sSystemPackages.add("com.facebook.orca");
-        sSystemPackages.add("com.facebook.lite");
-        sSystemPackages.add("com.facebook.mlite");
-        sSystemPackages.add("com.facebook.services");
+        addOpenPackage("com.twitter.android");
+        addOpenPackage("com.twitter.android.lite");
+
+        // Browsers exposed to virtual apps for OAuth / Chrome Custom Tabs.
+        addBrowserPackage("com.android.chrome");
+        addBrowserPackage("com.chrome.beta");
+        addBrowserPackage("com.chrome.dev");
+        addBrowserPackage("com.google.android.apps.chrome");
+        addBrowserPackage("com.sec.android.app.sbrowser");
+        addBrowserPackage("com.android.browser");
+        addBrowserPackage("com.opera.browser");
+        addBrowserPackage("org.mozilla.firefox");
+
+        // Facebook / Messenger packages used by Facebook SDK SSO discovery.
+        addFacebookPackage("com.facebook.katana");
+        addFacebookPackage("com.facebook.orca");
+        addFacebookPackage("com.facebook.lite");
+        addFacebookPackage("com.facebook.mlite");
+        addFacebookPackage("com.facebook.services");
+    }
+
+    private static void addOpenPackage(String packageName) {
+        if (!sSystemPackages.contains(packageName)) {
+            sSystemPackages.add(packageName);
+        }
+    }
+
+    private static void addBrowserPackage(String packageName) {
+        addOpenPackage(packageName);
+        if (!sBrowserPackages.contains(packageName)) {
+            sBrowserPackages.add(packageName);
+        }
+    }
+
+    private static void addFacebookPackage(String packageName) {
+        addOpenPackage(packageName);
+        if (!sFacebookPackages.contains(packageName)) {
+            sFacebookPackages.add(packageName);
+        }
     }
 
     public static boolean isOpenPackage(String packageName) {
-        return sSystemPackages.contains(packageName);
+        return packageName != null && sSystemPackages.contains(packageName);
     }
 
     public static boolean isOpenPackage(ComponentName componentName) {
         return componentName != null && isOpenPackage(componentName.getPackageName());
+    }
+
+    public static boolean isBrowserPackage(String packageName) {
+        return packageName != null && sBrowserPackages.contains(packageName);
+    }
+
+    public static boolean isBrowserPackage(ComponentName componentName) {
+        return componentName != null && isBrowserPackage(componentName.getPackageName());
+    }
+
+    public static boolean isFacebookPackage(String packageName) {
+        return packageName != null && sFacebookPackages.contains(packageName);
+    }
+
+    public static boolean isFacebookPackage(ComponentName componentName) {
+        return componentName != null && isFacebookPackage(componentName.getPackageName());
     }
 
     public static boolean isBlackPackage(String packageName) {
