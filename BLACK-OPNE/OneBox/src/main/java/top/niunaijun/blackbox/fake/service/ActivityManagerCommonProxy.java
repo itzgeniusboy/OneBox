@@ -21,6 +21,7 @@ import top.niunaijun.blackbox.utils.FileUtils;
 import top.niunaijun.blackbox.utils.MethodParameterUtils;
 import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
+import top.niunaijun.blackbox.utils.compat.OAuthIntentHelper;
 import top.niunaijun.blackbox.utils.compat.StartActivityCompat;
 import static android.content.pm.PackageManager.GET_META_DATA;
 import org.lsposed.lsparanoid.Obfuscate;
@@ -69,7 +70,24 @@ public class ActivityManagerCommonProxy {
                 intent.setData(Uri.parse("package:" + BlackBoxCore.getHostPkg()));
             }
             
-            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveActivity(intent, FileUtils.FileMode.MODE_IWUSR, StartActivityCompat.getResolvedType(args), BActivityThread.getUserId());
+            String resolvedType = StartActivityCompat.getResolvedType(args);
+            if (!OAuthIntentHelper.isFacebookOAuthCallback(intent) && OAuthIntentHelper.shouldBypassVirtualFallback(intent)) {
+                // Browser auth and intent:// URLs should stay outside OneBox. Do not
+                // force them into BActivityThread.getAppPackageName(), otherwise Chrome
+                // Custom Tabs / Facebook OAuth can be resolved to the wrong app or lost.
+                return method.invoke(who, args);
+            }
+
+            ResolveInfo resolveInfo = BlackBoxCore.getBPackageManager().resolveActivity(intent, FileUtils.FileMode.MODE_IWUSR, resolvedType, BActivityThread.getUserId());
+
+            if (resolveInfo == null && OAuthIntentHelper.isFacebookOAuthCallback(intent)) {
+                // Facebook browser/Custom Tab callbacks (fbconnect://, fb<APP_ID>://,
+                // login_success URLs) must be delivered back to the virtual app's
+                // FacebookActivity/CallbackManager before the host OS gets a chance
+                // to consume the deep link.
+                resolveInfo = resolveInCurrentVirtualPackage(intent, resolvedType);
+            }
+
             if (resolveInfo == null) {
                 String origPackage = intent.getPackage();
                 if (intent.getPackage() == null && intent.getComponent() == null) {
@@ -77,7 +95,7 @@ public class ActivityManagerCommonProxy {
                 } else {
                     origPackage = intent.getPackage();
                 }
-                resolveInfo = BlackBoxCore.getBPackageManager().resolveActivity(intent, FileUtils.FileMode.MODE_IWUSR, StartActivityCompat.getResolvedType(args), BActivityThread.getUserId());
+                resolveInfo = BlackBoxCore.getBPackageManager().resolveActivity(intent, FileUtils.FileMode.MODE_IWUSR, resolvedType, BActivityThread.getUserId());
                 if (resolveInfo == null) {
                     intent.setPackage(origPackage);
                     return method.invoke(who, args);
@@ -86,9 +104,23 @@ public class ActivityManagerCommonProxy {
 
             intent.setExtrasClassLoader(who.getClass().getClassLoader());
             intent.setComponent(new ComponentName(resolveInfo.activityInfo.packageName, resolveInfo.activityInfo.name));
-            BlackBoxCore.getBActivityManager().startActivityAms(BActivityThread.getUserId(),StartActivityCompat.getIntent(args),StartActivityCompat.getResolvedType(args),StartActivityCompat.getResultTo(args),
+            BlackBoxCore.getBActivityManager().startActivityAms(BActivityThread.getUserId(),StartActivityCompat.getIntent(args),resolvedType,StartActivityCompat.getResultTo(args),
 		    StartActivityCompat.getResultWho(args),StartActivityCompat.getRequestCode(args),StartActivityCompat.getFlags(args),StartActivityCompat.getOptions(args));
             return 0;
+        }
+
+        private ResolveInfo resolveInCurrentVirtualPackage(Intent intent, String resolvedType) {
+            String origPackage = intent.getPackage();
+            ComponentName origComponent = intent.getComponent();
+            if (origPackage != null || origComponent != null) {
+                return null;
+            }
+            try {
+                intent.setPackage(BActivityThread.getAppPackageName());
+                return BlackBoxCore.getBPackageManager().resolveActivity(intent, FileUtils.FileMode.MODE_IWUSR, resolvedType, BActivityThread.getUserId());
+            } finally {
+                intent.setPackage(origPackage);
+            }
         }
 
         private Intent getIntent(Object[] args) {
